@@ -1,19 +1,14 @@
 # Gibbs Sampler for Bayesian Error-in-Variable Regression
 
-```bash
-pip install bayeseiv
-```
-
-# Example
-
-See examples folder for examples.
+Simulations for the preprint https://arxiv.org/abs/2209.08301
 
 ## Citation
 
+https://arxiv.org/abs/2209.08301
 
 ## Authors
 
-Austin Brown (graduate student at the School of Statistics, University of Minnesota)
+Austin Brown (Department of Statistics, University of Warwick)
 
 ## Dependencies
 
