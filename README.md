@@ -4,9 +4,6 @@ Simulations for the preprint https://arxiv.org/abs/2209.08301
 
 ## Citation
 
-https://arxiv.org/abs/2209.08301
-
-
 ```
 @article{brown:2023,
     title={{Geometric Ergodicity of Gibbs Samplers for Bayesian Error-in-variable Regression}}, 
