@@ -16,10 +16,6 @@ Bibtex citation:
 }
 ```
 
-QR code for preprint:
-
-![](https://github.com/austindavidbrown/BayesEIV/blob/main/qr.png?raw=true)
-
 ## Authors
 
 Austin Brown (Department of Statistics, University of Warwick)
