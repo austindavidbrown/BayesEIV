@@ -165,7 +165,7 @@ def compute_diagnostics(X):
   return min_se, max_se, det_se, ess
 
 
-def run_sim(df):
+def run_sim(df, misspecified = True):
   ###
   # Generate data
   ###
@@ -186,8 +186,12 @@ def run_sim(df):
   A_true = np.zeros((n, p))
   for i in range(0, n):
     X[i] = np.random.uniform(size=p, low=-1, high=1)
-    xi_misspecified= multivariate_t(df = df, loc = np.zeros(p), shape = C_A_true[i]).rvs(1)
-    A_true[i] = X[i] + xi_misspecified
+    if misspecified:
+      xi = multivariate_t(df = df, loc = np.zeros(p), shape = C_A_true[i]).rvs(1)
+    else:
+      xi = np.random.multivariate_normal(mean = np.zeros(p), cov = C_A_true[i])
+    A_true[i] = X[i] + xi
+
   Y = np.zeros((n, m))
   for i in range(0, n):
     Y[i] = Theta_true.T @ Z[i] + B_true.T @ A_true[i] + Sigma_half_true @ np.random.normal(size = m, loc=0, scale=1)
@@ -206,7 +210,6 @@ def run_sim(df):
   ###
   min_se_vector = np.zeros((N_REPS, N_COMPUTES))
   max_se_vector = np.zeros((N_REPS, N_COMPUTES))
-  det_se_vector = np.zeros((N_REPS, N_COMPUTES))
   ess_vector = np.zeros((N_REPS, N_COMPUTES))
   for r in range(0, N_REPS):
     print("Rep:", r + 1)
@@ -215,19 +218,37 @@ def run_sim(df):
     min_se, max_se, det_se, ess = compute_diagnostics(betas)
     min_se_vector[r] = min_se
     max_se_vector[r] = max_se
-    det_se_vector[r] = det_se
     ess_vector[r] = ess
 
     print("min_se", min_se)
     print("max_se", max_se)
-    print("det_se", det_se)
     print("ESS", ess)
 
-  min_se_mean = min_se_vector.mean(0)
-  max_se_mean = max_se_vector.mean(0)
-  det_se_mean = det_se_vector.mean(0)
-  ess_mean = ess_vector.mean(0)
-  return min_se_mean, max_se_mean, det_se_mean, ess_mean
+  min_se_lower = np.quantile(min_se_vector, ALPHA,  axis=0)
+  min_se_med = np.quantile(min_se_vector, .5,  axis=0)
+  min_se_upper = np.quantile(min_se_vector, 1 - ALPHA,  axis=0)
+
+  max_se_lower = np.quantile(max_se_vector, ALPHA,  axis=0)
+  max_se_med = np.quantile(max_se_vector, .5,  axis=0)
+  max_se_upper = np.quantile(max_se_vector, 1 - ALPHA,  axis=0)
+
+  ess_lower = np.quantile(ess_vector, ALPHA,  axis=0)
+  ess_med = np.quantile(ess_vector, .5,  axis=0)
+  ess_upper = np.quantile(ess_vector, 1 - ALPHA,  axis=0)
+
+  return {
+          "min_se_lower": min_se_lower, 
+          "min_se_med": min_se_med, 
+          "min_se_upper": min_se_upper,
+
+          "max_se_lower": max_se_lower, 
+          "max_se_med": max_se_med, 
+          "max_se_upper": max_se_upper,
+
+          "ess_lower": ess_lower, 
+          "ess_med": ess_med, 
+          "ess_upper": ess_upper
+         }
 
 
 ######
@@ -237,26 +258,23 @@ np.random.seed(1)
 
 BURN_IN = 10**4
 N_ITERATIONS = 10**5 + BURN_IN
-N_REPS = 5
+N_REPS = 10
 
 SHIFT = int(N_ITERATIONS / 4)
 N_COMPUTES = 1 + int((N_ITERATIONS - SHIFT) / SHIFT)
+ALPHA = .25
 
 p = 3
 m = 3
 n = 50
 q = 1
-df = 10
+df = 0
 print("Running sim")
-min_se, max_se, det_se, ess = run_sim(df)
+sim = run_sim(df, misspecified = False)
 
 ###
 # Save to csv
 ###
-pd.DataFrame({"min_se": min_se,
-              "max_se": max_se,
-              "det_se": det_se,
-              "ess": ess
-              }).to_csv("sim_%s.csv" % df, index = False)
-
+pd.DataFrame(sim).to_csv("sim_correct.csv", index = False)
+# pd.DataFrame(sim).to_csv("sim_misspecified_%d.csv" % df, index = False)
 
