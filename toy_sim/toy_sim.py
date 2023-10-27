@@ -149,14 +149,20 @@ def multi_ess(X):
 
 
 def compute_diagnostics(X):
-  se = np.zeros(N_COMPUTES)
+  max_se = np.zeros(N_COMPUTES)
+  min_se = np.zeros(N_COMPUTES)
+  det_se = np.zeros(N_COMPUTES)
   ess = np.zeros(N_COMPUTES)
+
   for k in range(0, N_COMPUTES):
     X_k = X[0:(SHIFT * (k + 1))]
     lams_k, _ = np.linalg.eig(np.linalg.cholesky(bm_cov(X_k)))
-    se[k] = np.max(lams_k)
-    ess[k] = multi_ess(X_k) 
-  return se, ess
+    max_se[k] = np.max(lams_k)
+    min_se[k] = np.min(lams_k)
+    det_se[k] = np.prod(lams_k)
+    ess[k] = multi_ess(X_k)
+
+  return min_se, max_se, det_se, ess
 
 
 def run_sim(q, p, m, n):
@@ -198,22 +204,51 @@ def run_sim(q, p, m, n):
   ###
   # Generate diagnostics
   ###
-  se_vector = np.zeros((N_REPS, N_COMPUTES))
+  min_se_vector = np.zeros((N_REPS, N_COMPUTES))
+  max_se_vector = np.zeros((N_REPS, N_COMPUTES))
+  det_se_vector = np.zeros((N_REPS, N_COMPUTES))
   ess_vector = np.zeros((N_REPS, N_COMPUTES))
   for r in range(0, N_REPS):
     print("Rep:", r + 1)
     sim = gibbs_sampler.sample(n_iterations = N_ITERATIONS)
     betas = sim["betas"][BURN_IN:]
-    se, ess = compute_diagnostics(betas)
-    se_vector[r] = se
+    min_se, max_se, det_se, ess = compute_diagnostics(betas)
+    min_se_vector[r] = min_se
+    max_se_vector[r] = max_se
+    det_se_vector[r] = det_se
     ess_vector[r] = ess
 
-    print("SE", se)
+    print("min_se", min_se)
+    print("max_se", max_se)
+    print("det_se", det_se)
     print("ESS", ess)
 
-  se_mean = se_vector.mean(0)
-  ess_mean = ess_vector.mean(0)
-  return se_mean, ess_mean
+  min_se_lower = np.quantile(min_se_vector, ALPHA,  axis=0)
+  min_se_med = np.quantile(min_se_vector, .5,  axis=0)
+  min_se_upper = np.quantile(min_se_vector, 1 - ALPHA,  axis=0)
+
+  max_se_lower = np.quantile(max_se_vector, ALPHA,  axis=0)
+  max_se_med = np.quantile(max_se_vector, .5,  axis=0)
+  max_se_upper = np.quantile(max_se_vector, 1 - ALPHA,  axis=0)
+
+  ess_lower = np.quantile(ess_vector, ALPHA,  axis=0)
+  ess_med = np.quantile(ess_vector, .5,  axis=0)
+  ess_upper = np.quantile(ess_vector, 1 - ALPHA,  axis=0)
+
+  return {
+          "min_se_lower": min_se_lower, 
+          "min_se_med": min_se_med, 
+          "min_se_upper": min_se_upper,
+
+          "max_se_lower": max_se_lower, 
+          "max_se_med": max_se_med, 
+          "max_se_upper": max_se_upper,
+
+          "ess_lower": ess_lower, 
+          "ess_med": ess_med, 
+          "ess_upper": ess_upper
+         }
+              
 
 
 ######
@@ -224,21 +259,18 @@ np.random.seed(1)
 
 BURN_IN = 10**4
 N_ITERATIONS = 10**5 + BURN_IN
-N_REPS = 5
+N_REPS = 20
 
 SHIFT = int(N_ITERATIONS / 4)
 N_COMPUTES = 1 + int((N_ITERATIONS - SHIFT) / SHIFT)
+ALPHA = .25
 
-p = 6
-m = 3
+p = 2
+m = 2
 print("Running sim")
-se, ess = run_sim(q = 1, p = p, m = m, n = 50)
+sim = run_sim(q = 1, p = p, m = m, n = 50)
 
 ###
 # Save to csv
 ###
-pd.DataFrame({"se": se,
-              "ess": ess
-              }).to_csv("sim_%s_%s.csv" % (p, m), index = False)
-
-
+pd.DataFrame(sim).to_csv("sim_%s_%s.csv" % (p, m), index = False)
